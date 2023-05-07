@@ -1,10 +1,13 @@
 from os import walk, path, makedirs
 from fnmatch import filter
 from datetime import datetime, date
+import csv
 
-root_path = "C:\\"  # replace with the root path of the disk you want to scan
+root_path = "E:\FR"  # replace with the root path of the disk you want to scan
 file_patterns = ["*.pst"]
 files = []
+rows = []
+MB = 1048576
 
 
 def make_directory():
@@ -22,16 +25,28 @@ def look_for_files():
                 files.append(file_path)
 
 
-def make_report(filename):
-    with open(filename, "w") as report:
+def extract_user_from_filepath(file_path):
+    c = "\\"
+    first_index = file_path.find(c)
+    second_index = file_path.find(c, first_index + 1)
+    third_index = file_path.find(c, second_index + 1)
+
+    user = file_path[second_index + 1 : third_index]
+
+    return user
+
+
+def make_report():
+    filename = "data/raport-" + datetime.now().strftime("%H_%M_%S-%d_%m_%Y") + ".csv"
+
+    with open(filename, "w", newline="") as file:
+        writer = csv.writer(file)
+
         for file in files:
             modification_time = path.getmtime(file)
             formatted_date = datetime.fromtimestamp(modification_time).strftime(
                 "%H:%M:%S %d.%m.%Y"
             )
-            report.write(f"File:    {file}\n")
-            report.write(f"Last modified time:  {formatted_date}\n")
-            report.write("\n")
 
             file_date = datetime.fromtimestamp(modification_time).date()
 
@@ -42,9 +57,31 @@ def make_report(filename):
                 and file_date.month == current_date.month
                 and file_date.day == current_date.day
             ):
-                report.write("The file was modified today.\n\n")
+                info = f"The file was modified today."
             else:
-                report.write("The file was not modified today.\n\n")
+                info = f"The file was not modified today."
+
+            file_size = path.getsize(file)
+            file_size_mb = file_size / MB
+
+            user = extract_user_from_filepath(file)
+
+            rows.append([file, user, formatted_date, info, f"{file_size_mb} MB"])
+
+        rows_sorted = sorted(rows, key=lambda row: path.getmtime(row[0]))
+        for row in rows_sorted:
+            writer.writerow(row)
+
+    filename = (
+        "data/raport-users-" + datetime.now().strftime("%H_%M_%S-%d_%m_%Y") + ".csv"
+    )
+
+    with open(filename, "w", newline="") as file:
+        writer = csv.writer(file)
+
+        rows_sorted = sorted(rows, key=lambda row: (row[1], path.getmtime(row[0])))
+        for row in rows_sorted:
+            writer.writerow(row)
 
 
 def main():
@@ -53,10 +90,9 @@ def main():
     print("Loading...")
     look_for_files()
 
-    filename = "data/raport-" + datetime.now().strftime("%H_%M_%S-%d_%m_%Y") + ".txt"
+    make_report()
 
-    make_report(filename)
-
+    print("Success!")
     input("\nPress any button to exit")
 
 
