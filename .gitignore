@@ -2,3 +2,5 @@ dist
 build
 PSTlogger
 main.spec
+.vscode
+data
